@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gastos Mensuales</title>
+
+<style>
+:root{
+  --bg:#0f0f12;
+  --card:#1c1c22;
+  --text:#ffffff;
+  --muted:#9a9aa0;
+  --green:#2ecc71;
+  --red:#e74c3c;
+  --blue:#0a84ff;
+}
+
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  padding:16px;
+  font-size:20px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+header button{
+  background:none;
+  border:none;
+  color:var(--blue);
+  font-size:18px;
+}
+
+.container{
+  padding:12px;
+}
+
+.card{
+  background:var(--card);
+  padding:14px;
+  border-radius:14px;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.card:active{opacity:.7}
+
+.total{
+  font-size:20px;
+  font-weight:600;
+  margin:16px 0;
+  text-align:right;
+}
+
+.plus{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  background:var(--blue);
+  color:white;
+  font-size:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:flex;
+  align-items:flex-end;
+}
+
+.sheet{
+  background:var(--card);
+  width:100%;
+  padding:16px;
+  border-radius:18px 18px 0 0;
+}
+
+input,select{
+  width:100%;
+  padding:14px;
+  margin-bottom:10px;
+  background:#000;
+  color:white;
+  border:1px solid #333;
+  border-radius:12px;
+  font-size:16px;
+}
+
+button.main{
+  width:100%;
+  padding:14px;
+  background:var(--blue);
+  color:white;
+  border:none;
+  border-radius:14px;
+  font-size:17px;
+}
+
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<header>
+  <button id="back" onclick="goBack()" class="hidden">←</button>
+  <span id="title">Meses</span>
+</header>
+
+<div class="container" id="list"></div>
+
+<div class="total hidden" id="total"></div>
+
+<div class="plus" onclick="openModal()">＋</div>
+
+<div class="modal hidden" id="modal" onclick="closeModal(event)">
+  <div class="sheet">
+    <input id="desc" placeholder="Descripción">
+    <input id="amount" type="number" placeholder="Monto">
+    <select id="type">
+      <option value="in">Ingreso</option>
+      <option value="out">Egreso</option>
+    </select>
+    <button class="main" onclick="save()">Guardar</button>
+  </div>
+</div>
+
+<script>
+const months=[
+  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+];
+
+let data=JSON.parse(localStorage.getItem("gastos"))||{};
+let current=null;
+
+const list=document.getElementById("list");
+const title=document.getElementById("title");
+const back=document.getElementById("back");
+const modal=document.getElementById("modal");
+const totalEl=document.getElementById("total");
+
+function saveData(){
+  localStorage.setItem("gastos",JSON.stringify(data));
+}
+
+function render(){
+  list.innerHTML="";
+  totalEl.classList.add("hidden");
+
+  if(current===null){
+    title.textContent="Meses";
+    back.classList.add("hidden");
+
+    months.forEach(m=>{
+      if(!data[m]) data[m]=[];
+      const d=document.createElement("div");
+      d.className="card";
+      d.innerHTML=`<span>${m}</span>`;
+      d.onclick=()=>{current=m;render()};
+      list.appendChild(d);
+    });
+  }else{
+    title.textContent=current;
+    back.classList.remove("hidden");
+
+    let total=0;
+    data[current].forEach((x,i)=>{
+      total+=x.type==="in"?x.amount:-x.amount;
+      const d=document.createElement("div");
+      d.className="card";
+      d.innerHTML=`
+        <span>${x.desc}</span>
+        <span style="color:${x.type==="in"?"var(--green)":"var(--red)"}">
+          ${x.type==="in"?"+":"-"}$${x.amount}
+        </span>
+      `;
+      list.appendChild(d);
+    });
+
+    totalEl.textContent=`Total: $${total}`;
+    totalEl.classList.remove("hidden");
+  }
+}
+
+function openModal(){
+  if(current===null) return;
+  modal.classList.remove("hidden");
+}
+
+function closeModal(e){
+  if(e.target===modal) modal.classList.add("hidden");
+}
+
+function save(){
+  const desc=document.getElementById("desc").value;
+  const amount=+document.getElementById("amount").value;
+  const type=document.getElementById("type").value;
+  if(!amount) return;
+
+  data[current].push({desc,amount,type});
+  saveData();
+  modal.classList.add("hidden");
+  document.getElementById("desc").value="";
+  document.getElementById("amount").value="";
+  render();
+}
+
+function goBack(){
+  current=null;
+  render();
+}
+
+render();
+</script>
+
+</body>
+</html>
