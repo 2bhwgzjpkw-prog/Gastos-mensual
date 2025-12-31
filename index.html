@@ -6,233 +6,196 @@
 <title>Gastos Mensuales</title>
 
 <style>
-:root {
-  --bg: #0e0e11;
-  --card: #1a1a1f;
-  --text: #ffffff;
-  --muted: #9ca3af;
-  --positive: #22c55e;
-  --negative: #ef4444;
-  --accent: #3b82f6;
+body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+    background:#0d0d0f;
+    color:#fff;
 }
-
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+.container{
+    max-width:420px;
+    margin:auto;
+    padding:20px;
 }
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  padding: 16px;
+h1{
+    margin-bottom:15px;
 }
-
-h1 {
-  margin-bottom: 16px;
+.month{
+    background:#1c1c20;
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
 }
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.month span.total{
+    color:#b0b0b5;
 }
+.hidden{display:none;}
 
-.card {
-  background: var(--card);
-  padding: 14px 16px;
-  border-radius: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
+.card{
+    background:#1c1c20;
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
-
-.total {
-  color: var(--muted);
-  font-weight: 600;
+.amount.neg{color:#ff5c5c;}
+.amount.pos{color:#4cd964;}
+.trash{
+    color:#ff5c5c;
+    cursor:pointer;
+    font-size:18px;
 }
-
-.total.positive { color: var(--positive); }
-.total.negative { color: var(--negative); }
-
-.hidden { display: none; }
-
-.back {
-  margin-bottom: 12px;
-  color: var(--accent);
-  cursor: pointer;
+input,select{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:#2a2a30;
+    color:white;
+    margin-bottom:10px;
+    font-size:16px;
 }
-
-.item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--card);
-  padding: 12px 14px;
-  border-radius: 12px;
+button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:14px;
+    background:#0a84ff;
+    color:white;
+    font-size:18px;
 }
-
-.amount.positive { color: var(--positive); }
-.amount.negative { color: var(--negative); }
-
-.trash {
-  cursor: pointer;
-  opacity: 0.7;
+.total{
+    text-align:right;
+    margin-top:10px;
+    font-size:20px;
 }
-
-.trash:hover {
-  opacity: 1;
-}
-
-.fab {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--accent);
-  color: white;
-  border-radius: 50%;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  cursor: pointer;
+.back{
+    margin-bottom:10px;
+    color:#0a84ff;
+    cursor:pointer;
 }
 </style>
 </head>
 
 <body>
+<div class="container">
 
-<div id="monthsView">
-  <h1>Meses</h1>
-  <div class="list" id="monthsList"></div>
+<h1 id="title">Meses</h1>
+
+<div id="months"></div>
+
+<div id="detail" class="hidden">
+    <div class="back" onclick="goBack()">← Volver</div>
+
+    <input id="desc" placeholder="Descripción">
+    <input id="amount" type="number" placeholder="Monto">
+    <select id="type">
+        <option value="pos">Ingreso</option>
+        <option value="neg">Egreso</option>
+    </select>
+    <button onclick="add()">Agregar</button>
+
+    <div id="list"></div>
+    <div class="total" id="total"></div>
 </div>
 
-<div id="detailView" class="hidden">
-  <div class="back" onclick="goBack()">← <span id="monthTitle"></span></div>
-  <div class="list" id="itemsList"></div>
-  <h2 id="monthTotal"></h2>
 </div>
-
-<div class="fab" onclick="addMovement()">+</div>
 
 <script>
-const months = [
-  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
-  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+const months=[
+"Enero","Febrero","Marzo","Abril","Mayo","Junio",
+"Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
 ];
 
-let currentMonth = null;
+let data=JSON.parse(localStorage.getItem("gastos"))||{};
+let current=null;
 
-function getData() {
-  return JSON.parse(localStorage.getItem("gastos") || "{}");
+function money(n){
+    return n.toLocaleString("es-MX",{minimumFractionDigits:0});
 }
 
-function saveData(data) {
-  localStorage.setItem("gastos", JSON.stringify(data));
+function save(){
+    localStorage.setItem("gastos",JSON.stringify(data));
 }
 
-function formatMoney(value) {
-  return value.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+function renderMonths(){
+    const m=document.getElementById("months");
+    m.innerHTML="";
+    months.forEach(mon=>{
+        const total=(data[mon]||[]).reduce((s,i)=>s+(i.type=="neg"?-i.amount:i.amount),0);
+        const d=document.createElement("div");
+        d.className="month";
+        d.innerHTML=`<span>${mon}</span><span class="total">$${money(total)}</span>`;
+        d.onclick=()=>open(mon);
+        m.appendChild(d);
+    });
 }
 
-function calcTotal(list) {
-  return list.reduce((sum, m) => sum + m.amount, 0);
+function open(mon){
+    current=mon;
+    document.getElementById("title").innerText=mon;
+    document.getElementById("months").classList.add("hidden");
+    document.getElementById("detail").classList.remove("hidden");
+    renderList();
 }
 
-function renderMonths() {
-  const data = getData();
-  const container = document.getElementById("monthsList");
-  container.innerHTML = "";
-
-  months.forEach(month => {
-    const list = data[month] || [];
-    const total = calcTotal(list);
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.onclick = () => openMonth(month);
-
-    const totalClass = total >= 0 ? "positive" : "negative";
-
-    div.innerHTML = `
-      <span>${month}</span>
-      <span class="total ${totalClass}">${formatMoney(total)}</span>
-    `;
-    container.appendChild(div);
-  });
+function goBack(){
+    current=null;
+    document.getElementById("title").innerText="Meses";
+    document.getElementById("months").classList.remove("hidden");
+    document.getElementById("detail").classList.add("hidden");
+    renderMonths();
 }
 
-function openMonth(month) {
-  currentMonth = month;
-  document.getElementById("monthsView").classList.add("hidden");
-  document.getElementById("detailView").classList.remove("hidden");
-  document.getElementById("monthTitle").textContent = month;
-  renderMonth();
+function add(){
+    const desc=document.getElementById("desc").value;
+    const amt=Number(document.getElementById("amount").value);
+    const type=document.getElementById("type").value;
+    if(!desc||!amt)return;
+
+    data[current]=data[current]||[];
+    data[current].push({desc,amount:amt,type});
+    save();
+    document.getElementById("desc").value="";
+    document.getElementById("amount").value="";
+    renderList();
 }
 
-function goBack() {
-  currentMonth = null;
-  document.getElementById("detailView").classList.add("hidden");
-  document.getElementById("monthsView").classList.remove("hidden");
-  renderMonths();
+function remove(i){
+    data[current].splice(i,1);
+    save();
+    renderList();
 }
 
-function renderMonth() {
-  const data = getData();
-  const list = data[currentMonth] || [];
-  const container = document.getElementById("itemsList");
-  container.innerHTML = "";
+function renderList(){
+    const l=document.getElementById("list");
+    l.innerHTML="";
+    let total=0;
 
-  list.forEach((item, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
+    (data[current]||[]).forEach((it,i)=>{
+        total+=it.type=="neg"?-it.amount:it.amount;
+        const c=document.createElement("div");
+        c.className="card";
+        c.innerHTML=`
+            <span>${it.desc}</span>
+            <span class="amount ${it.type}">
+                ${it.type=="neg"?"-":"+"}$${money(it.amount)}
+            </span>
+            <span class="trash" onclick="remove(${i})">🗑</span>
+        `;
+        l.appendChild(c);
+    });
 
-    const cls = item.amount >= 0 ? "positive" : "negative";
-
-    div.innerHTML = `
-      <span>${item.name}</span>
-      <span class="amount ${cls}">
-        ${formatMoney(item.amount)}
-        <span class="trash" onclick="deleteItem(${index})">🗑️</span>
-      </span>
-    `;
-    container.appendChild(div);
-  });
-
-  const total = calcTotal(list);
-  document.getElementById("monthTotal").textContent =
-    "Total: " + formatMoney(total);
-}
-
-function addMovement() {
-  if (!currentMonth) return;
-
-  const name = prompt("Concepto:");
-  if (!name) return;
-
-  const amount = Number(prompt("Monto (usa - para egresos):"));
-  if (isNaN(amount)) return;
-
-  const data = getData();
-  if (!data[currentMonth]) data[currentMonth] = [];
-
-  data[currentMonth].push({ name, amount });
-  saveData(data);
-  renderMonth();
-}
-
-function deleteItem(index) {
-  const data = getData();
-  data[currentMonth].splice(index, 1);
-  saveData(data);
-  renderMonth();
+    document.getElementById("total").innerText=`Total: $${money(total)}`;
 }
 
 renderMonths();
 </script>
-
 </body>
 </html>
