@@ -42,6 +42,19 @@ header{
 .month .total.positive{color:#30d158}
 .month .total.negative{color:#ff453a}
 
+.annual{
+  margin-top:20px;
+  padding-top:14px;
+  border-top:1px solid #333;
+  display:flex;
+  justify-content:space-between;
+  font-size:18px;
+  font-weight:600;
+}
+
+.annual.positive{color:#30d158}
+.annual.negative{color:#ff453a}
+
 .form{
   display:grid;
   gap:10px;
@@ -111,7 +124,6 @@ function money(n){
   return n.toLocaleString("es-MX");
 }
 
-// FORMATO DD/MM/YYYY
 function formatDate(fechaISO){
   const d = new Date(fechaISO);
   return d.toLocaleDateString("es-MX", {
@@ -125,10 +137,15 @@ function monthTotal(m){
   return data[m].reduce((t,x)=>t+(x.type==="ingreso"?x.amount:-x.amount),0);
 }
 
+function annualTotal(){
+  return months.reduce((sum,m)=>sum+monthTotal(m),0);
+}
+
 function renderMonths(){
   const app=document.getElementById("app");
   document.getElementById("title").textContent="Gastos mensuales";
   app.innerHTML="";
+
   months.forEach(m=>{
     const t=monthTotal(m);
     app.innerHTML+=`
@@ -137,6 +154,13 @@ function renderMonths(){
         <span class="total ${t>=0?'positive':'negative'}">$${money(t)}</span>
       </div>`;
   });
+
+  const totalAnual = annualTotal();
+  app.innerHTML+=`
+    <div class="annual ${totalAnual>=0?'positive':'negative'}">
+      <span>Total anual</span>
+      <span>$${money(totalAnual)}</span>
+    </div>`;
 }
 
 function openMonth(m){
@@ -145,7 +169,6 @@ function openMonth(m){
   document.getElementById("title").textContent=m.toUpperCase();
   const app=document.getElementById("app");
 
-  // 👉 ORDENAR POR FECHA (MÁS RECIENTE PRIMERO)
   data[m].sort((a,b)=> new Date(b.date) - new Date(a.date));
 
   app.innerHTML=`
