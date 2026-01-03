@@ -3,222 +3,218 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gastos Mensuales</title>
+<title>Gastos Personales</title>
+
 <style>
-:root {
-  --bg: #0d0d0f;
-  --card: #1c1c22;
-  --text: #ffffff;
-  --muted: #9a9a9a;
-  --green: #4cd964;
-  --red: #ff3b30;
-  --blue: #0a84ff;
+body{
+  margin:0;
+  background:#0f0f0f;
+  color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont;
 }
 
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+header{
+  padding:16px;
+  border-bottom:1px solid #222;
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
+header h1{
+  margin:0;
+  font-size:20px;
+  font-weight:600;
 }
 
-header {
-  padding: 20px;
-  font-size: 24px;
-  font-weight: bold;
+.total{
+  margin-top:6px;
+  font-size:22px;
+  font-weight:600;
 }
 
-.list {
-  padding: 0 16px 90px;
+.total.positive{color:#30d158}
+.total.negative{color:#ff453a}
+
+.container{
+  padding:16px;
 }
 
-.month {
-  background: var(--card);
-  padding: 14px;
-  border-radius: 14px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
+.form{
+  display:grid;
+  gap:10px;
+  margin-bottom:20px;
 }
 
-.month span {
-  color: var(--muted);
+input,select{
+  background:#1c1c1e;
+  border:none;
+  border-radius:10px;
+  padding:12px;
+  color:white;
+  font-size:16px;
 }
 
-.view {
-  display: none;
-  padding-bottom: 90px;
+button{
+  background:#0a84ff;
+  border:none;
+  border-radius:12px;
+  padding:14px;
+  font-size:16px;
+  color:white;
 }
 
-.view.active {
-  display: block;
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
 }
 
-.back {
-  padding: 16px;
-  font-size: 18px;
-  cursor: pointer;
+.item{
+  background:#1c1c1e;
+  border-radius:12px;
+  padding:12px;
+  display:grid;
+  grid-template-columns:80px 1fr auto auto;
+  gap:8px;
+  align-items:center;
+  cursor:pointer;
 }
 
-.card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 14px;
-  margin: 10px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.date{font-size:13px;color:#aaa}
+.desc{font-size:15px}
+.amount.ingreso{color:#30d158}
+.amount.egreso{color:#ff453a}
 
-.amount.plus { color: var(--green); }
-.amount.minus { color: var(--red); }
-
-.trash {
-  margin-left: 10px;
-  cursor: pointer;
-}
-
-.total {
-  text-align: right;
-  padding: 20px;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.fab {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  background: var(--blue);
-  color: white;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  font-size: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+.trash{
+  font-size:18px;
+  cursor:pointer;
 }
 </style>
 </head>
+
 <body>
 
-<header id="title">Meses</header>
+<header>
+  <h1>Gastos personales</h1>
+  <div id="total" class="total">$0</div>
+</header>
 
-<div id="months" class="list"></div>
+<div class="container">
 
-<div id="detail" class="view">
-  <div class="back" onclick="back()">← <span id="monthName"></span></div>
-  <div id="moves"></div>
-  <div class="total" id="monthTotal"></div>
+  <!-- FORMULARIO EN ORDEN NATURAL -->
+  <div class="form">
+    <input type="date" id="date">
+    <input type="number" id="amount" placeholder="Monto">
+    <input type="text" id="desc" placeholder="Concepto">
+
+    <select id="type">
+      <option value="ingreso">Ingreso</option>
+      <option value="egreso">Egreso</option>
+    </select>
+
+    <button onclick="saveMovement()">Guardar</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
 </div>
 
-<div class="fab" onclick="addMove()">+</div>
-
 <script>
-const months = [
-  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
-  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
-];
+let data = JSON.parse(localStorage.getItem("gastos")) || [];
+let editIndex = null;
 
-let data = JSON.parse(localStorage.getItem("gastos")) || {};
-let currentMonth = null;
-
-const monthsDiv = document.getElementById("months");
-const detail = document.getElementById("detail");
-const movesDiv = document.getElementById("moves");
-
-function format(n) {
-  return n.toLocaleString("es-MX", { minimumFractionDigits: 0 });
+function formatDate(d){
+  const f = new Date(d);
+  return f.toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"2-digit"});
 }
 
-function renderMonths() {
-  monthsDiv.innerHTML = "";
-  months.forEach(m => {
-    const total = (data[m] || []).reduce((s, x) => s + x.amount, 0);
-    const div = document.createElement("div");
-    div.className = "month";
-    div.innerHTML = `<strong>${m}</strong><span>$${format(total)}</span>`;
-    div.onclick = () => openMonth(m);
-    monthsDiv.appendChild(div);
-  });
+function formatMoney(n){
+  return n.toLocaleString("es-MX");
 }
 
-function openMonth(m) {
-  currentMonth = m;
-  document.getElementById("title").style.display = "none";
-  monthsDiv.style.display = "none";
-  detail.classList.add("active");
-  document.getElementById("monthName").innerText = m;
-  renderMoves();
-}
-
-function back() {
-  detail.classList.remove("active");
-  monthsDiv.style.display = "block";
-  document.getElementById("title").style.display = "block";
-  renderMonths();
-}
-
-function renderMoves() {
-  movesDiv.innerHTML = "";
-  const list = data[currentMonth] || [];
-  let total = 0;
-
-  list.forEach((m, i) => {
-    total += m.amount;
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      <span>${m.text}</span>
-      <div>
-        <span class="amount ${m.amount >= 0 ? "plus":"minus"}">
-          ${m.amount >= 0 ? "+" : ""}$${format(m.amount)}
-        </span>
-        <span class="trash" onclick="removeMove(${i})">🗑️</span>
-      </div>
-    `;
-    movesDiv.appendChild(div);
-  });
-
-  document.getElementById("monthTotal").innerText =
-    "Total: $" + format(total);
-}
-
-function addMove() {
-  if (!currentMonth) return;
-
-  const text = prompt("Concepto");
-  if (!text) return;
-
-  const amount = parseFloat(prompt("Monto (usa negativo para egreso)"));
-  if (isNaN(amount)) return;
-
-  data[currentMonth] = data[currentMonth] || [];
-  data[currentMonth].push({ text, amount });
-
-  save();
-  renderMoves();
-}
-
-function removeMove(i) {
-  data[currentMonth].splice(i, 1);
-  save();
-  renderMoves();
-}
-
-function save() {
+function save(){
   localStorage.setItem("gastos", JSON.stringify(data));
 }
 
-renderMonths();
+function calcularTotal(){
+  let total = 0;
+  data.forEach(m=>{
+    total += m.type==="ingreso" ? m.amount : -m.amount;
+  });
+
+  const el = document.getElementById("total");
+  el.textContent = "$" + formatMoney(total);
+  el.className = "total " + (total>=0 ? "positive" : "negative");
+}
+
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML="";
+
+  data.forEach((m,i)=>{
+    const div=document.createElement("div");
+    div.className="item";
+    div.innerHTML=`
+      <div class="date">${formatDate(m.date)}</div>
+      <div class="desc">${m.desc}</div>
+      <div class="amount ${m.type}">
+        ${m.type==="ingreso"?"+":"-"}$${formatMoney(m.amount)}
+      </div>
+      <div class="trash" onclick="remove(${i}); event.stopPropagation()">🗑</div>
+    `;
+    div.onclick = ()=>edit(i);
+    list.appendChild(div);
+  });
+
+  calcularTotal();
+}
+
+function saveMovement(){
+  const date=document.getElementById("date").value;
+  const amount=document.getElementById("amount").value;
+  const desc=document.getElementById("desc").value;
+  const type=document.getElementById("type").value;
+
+  if(!date || !amount) return alert("Falta fecha o monto");
+
+  const movement = {
+    date,
+    amount:Number(amount),
+    desc,
+    type
+  };
+
+  if(editIndex !== null){
+    data[editIndex] = movement;
+    editIndex = null;
+  } else {
+    data.unshift(movement);
+  }
+
+  clearForm();
+  save();
+  render();
+}
+
+function edit(i){
+  const m = data[i];
+  document.getElementById("date").value = m.date;
+  document.getElementById("amount").value = m.amount;
+  document.getElementById("desc").value = m.desc;
+  document.getElementById("type").value = m.type;
+  editIndex = i;
+}
+
+function remove(i){
+  data.splice(i,1);
+  save();
+  render();
+}
+
+function clearForm(){
+  document.getElementById("amount").value="";
+  document.getElementById("desc").value="";
+}
+
+render();
 </script>
 
 </body>
